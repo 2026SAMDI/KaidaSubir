@@ -3,18 +3,23 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    [SerializeField] private GameManager gameManager;
+    
     [Header("이동 설정")]
-    public float moveSpeed = 5f;
-    public float jumpForce = 7f;
+    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float jumpForce = 7f;
 
     [Header("아이템")]
-    public int aCount = 10;
-    public int dCount = 10;
-    public int wCount = 5;
+    [SerializeField] private int aCount = 10;
+    [SerializeField] private int dCount = 10;
+    [SerializeField] private int wCount = 5;
+    
+    [Header("차감 간격 설정")]
+    public float consumeInterval = 0.2f; //0.2초마다 1씩 차감
+    private float aTimer = 0f;
+    private float dTimer = 0f;
 
-    private Rigidbody rb;
-
-    void Awake() => rb = GetComponent<Rigidbody>();
+    Rigidbody rb;
 
     void Update()
     {
@@ -32,11 +37,6 @@ public class PlayerController : MonoBehaviour
             Die();
         }
     }
-
-    [Header("차감 간격 설정")]
-    public float consumeInterval = 0.2f; //0.2초마다 1씩 차감
-    private float aTimer = 0f;
-    private float dTimer = 0f;
 
     void Move()
     {
@@ -93,16 +93,17 @@ public class PlayerController : MonoBehaviour
         }
     }
     
-    public void Die()
+    private void Die()
     {
-        Debug.Log("플레이어 사망! 씬을 재시작합니다.");
+        Debug.Log("사망ㅣ게임오버");
         
-        //GameManager에 있는 죽은 횟수 올리기
-        GameManager.AddDeath(); 
+        if (gameManager != null)
+        {
+            gameManager.AddDeath(); 
+        }
         
-        //현재 씬을 다시 처음부터 불러오기
         UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
-        );
+                UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
+            );
     }
 }

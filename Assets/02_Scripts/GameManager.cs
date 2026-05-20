@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    public static int deathCount = 0; //게임 전체에서 공유되는 데스 수
+    public int deathCount = 0; //게임 전체에서 공유되는 데스 수
 
-    public static void AddDeath()
+    public void AddDeath()
     {
         deathCount++;
         Debug.Log("총 데스 수: " + deathCount);
