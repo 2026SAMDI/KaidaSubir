@@ -7,8 +7,8 @@ public class BackgroundManager : MonoBehaviour
     public Sprite[] bgSprites;
     
     private static int currentBgIndex = 0;
-    private bool isGameStarted = false;
-    private bool isDead = false;
+    //private bool isGameStarted = false;
+    //private bool isDead = false;
     
     
     private Animator anim;

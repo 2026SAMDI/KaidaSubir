@@ -41,7 +41,7 @@ public class PlayerController : MonoBehaviour
     
     private bool isGameStarted = false; //게임 시작까지 대기
     
-    Rigidbody rb;
+    private Rigidbody rb;
     private Animator anim;
     private SpriteRenderer sr;
     
@@ -51,7 +51,6 @@ public class PlayerController : MonoBehaviour
         anim = GetComponent<Animator>();
         sr = GetComponent<SpriteRenderer>();
         
-        // 💡 같은 플레이어 안에 있는 리소스 매니저를 찾아 연결합니다
         resourceManager = GetComponent<PlayerResourceManager>();
     }
     
@@ -69,7 +68,7 @@ public class PlayerController : MonoBehaviour
     
     void Update()
     {
-        // 코요테 타임 타이머 계산
+        //코요테 타임 타이머 계산
         if (IsGrounded())
         {
             coyoteTimeCounter = coyoteTime;
@@ -82,7 +81,7 @@ public class PlayerController : MonoBehaviour
         //좌우 반전
         if (rb.linearVelocity.x < -0.1f)
         {
-            sr.flipX = true;  //왼쪽 이동하면 이미지 좌우 반전
+            sr.flipX = true;  //왼쪽 이동하면 이미지 반전
         }
         else if (rb.linearVelocity.x > 0.1f)
         {
@@ -126,7 +125,7 @@ public class PlayerController : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.A) && resourceManager.HasItem("A"))
             {
                 StartDash(-1f);
-                resourceManager.UseItem("A"); // 💡 아이템 소모
+                resourceManager.UseItem("A"); //아이템 소모
             }
             else if (Input.GetKeyDown(KeyCode.D) && resourceManager.HasItem("D"))
             {
@@ -158,7 +157,7 @@ public class PlayerController : MonoBehaviour
     void StartDash(float dir)
     {
         currentDashTime = dashDuration; //타이머 시작
-        dashDirection = dir;            //방향 설정
+        dashDirection = dir; //방향 설정
     }
     
     void Move()
@@ -170,12 +169,11 @@ public class PlayerController : MonoBehaviour
             //대시 도중 Y축 고정
             rb.linearVelocity = new Vector3(dashDirection * airDashSpeed, 0f, 0f);
             
-            return; //아래 로직은 대시 끝날 떄까지 완전 무시
+            return; //아래 로직은 대시 끝날 때까지 완전 무시
         }
         
         float moveInput = 0;
 
-        
         //(입력 키, 아이템 이름, 이동 방향, 타이머 변수, 최종 이동값)
         HandleDirection(KeyCode.A, "A", -1f, ref aTimer, ref moveInput);
         HandleDirection(KeyCode.D, "D",  1f, ref dTimer, ref moveInput);
@@ -201,7 +199,7 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetKey(key) && resourceManager.HasItem(itemType))
         {
-            moveInput = dir;
+            moveInput = dir; //이동 방향 설정
             timer += Time.fixedDeltaTime;
             if (timer >= consumeInterval)
             {
@@ -213,22 +211,6 @@ public class PlayerController : MonoBehaviour
         {
             timer = consumeInterval; 
         }
-
-        //공중 조작 배수 계산
-        float currentSpeed = IsGrounded() ? moveSpeed : moveSpeed * airControl;
-        
-        //Y축 속도 결정
-        float targetVerticalVelocity = rb.linearVelocity.y;
-
-        //고속 착지
-        if (Input.GetKey(KeyCode.S) && !IsGrounded())
-        {
-            targetVerticalVelocity = -fastFallSpeed;
-            Debug.Log("고속 착지");
-        }
-
-        //최종 속도 적용
-        rb.linearVelocity = new Vector2(moveInput * currentSpeed, targetVerticalVelocity);
     }
     
     private bool IsGrounded()
