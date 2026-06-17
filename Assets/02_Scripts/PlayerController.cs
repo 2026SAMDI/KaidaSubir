@@ -25,7 +25,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float fall = 2.5f; //떨어질 때 중력 배수
     
     [Header("바닥 확인")]
-    [SerializeField] private float groundDistance = 1.1f; //플레이어 중심에서 바닥까지 거리
+    [SerializeField] private float groundDistance = 4.8f; //플레이어 중심에서 바닥까지 거리
     [SerializeField] private LayerMask groundLayer; //바닥으로 인식할 레이어
     
     [Header("체공 후 조작")]
@@ -48,9 +48,14 @@ public class PlayerController : MonoBehaviour
     private bool isGameStarted = false; //게임 시작까지 대기
     
     Rigidbody rb;
+    private Animator anim;
+    private SpriteRenderer sr;
+    
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
+        sr = GetComponent<SpriteRenderer>();
     }
     
     void Start()
@@ -74,6 +79,33 @@ public class PlayerController : MonoBehaviour
     
     void Update()
     {
+        if (IsGrounded())
+        {
+            coyoteTimeCounter = 0.2f;
+        }
+        else
+        {
+            coyoteTimeCounter -= Time.deltaTime;
+        }
+        
+        //좌우 반전
+        if (rb.linearVelocity.x < -0.1f)
+        {
+            sr.flipX = true;  //왼쪽 이동하면 이미지 좌우 반전
+        }
+        else if (rb.linearVelocity.x > 0.1f)
+        {
+            sr.flipX = false; //오른쪽 이동이면 반전 끄기
+        }
+        
+        if (anim != null)
+        {
+            bool isWalking = Mathf.Abs(rb.linearVelocity.x) > 0.1f;
+            anim.SetBool("IsWalking", isWalking);
+            anim.SetBool("IsGrounded", IsGrounded());
+            anim.SetFloat("yVelocity", rb.linearVelocity.y);
+        }
+        
         if (!isGameStarted)
         {
             if (Input.GetKeyDown(KeyCode.W))
@@ -226,15 +258,19 @@ public class PlayerController : MonoBehaviour
     {
         if (wCount > 0 && coyoteTimeCounter > 0f)
         {
-            //상승 속도 리셋
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        
-            wCount--; 
-            coyoteTimeCounter = 0f; //점프시 타이머 중지
+            
+            if (anim != null) 
+            {
+                anim.SetTrigger("Jump"); //애니메이션 트리거 신호
+            }
+    
+            wCount--;
+            coyoteTimeCounter = 0f; // 점프시 타이머 중지
 
             if (uiManager != null) uiManager.UpdateItemUI("W", wCount);
-            Debug.Log("점프ㅣ남은 횟수:" + wCount);
+            Debug.Log("점프 성공! 남은 횟수: " + wCount);
         }
     }
     
@@ -243,6 +279,8 @@ public class PlayerController : MonoBehaviour
         Debug.Log("사망ㅣ게임오버");
         
         if (gameManager != null) gameManager.AddDeath();
+        
+        FindAnyObjectByType<BackgroundManager>().ChangeBackgroundOnDeath(); //배경매니저로 신호 보내기
         
         UnityEngine.SceneManagement.SceneManager.LoadScene(
                 UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
