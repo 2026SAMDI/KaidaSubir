@@ -10,6 +10,7 @@ public class BackgroundManager : MonoBehaviour
     private bool isGameStarted = false;
     private bool isDead = false;
     
+    
     private Animator anim;
 
     void Start()

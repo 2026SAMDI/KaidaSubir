@@ -1,21 +1,15 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-
+[RequireComponent(typeof(PlayerResourceManager))]
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] private UiManager uiManager;
-    [SerializeField] private GameManager gameManager;
+    private PlayerResourceManager resourceManager;
     
     [Header("이동")]
     [SerializeField] private float moveSpeed = 1.5f;
     [SerializeField] private float jumpForce = 5f;
 
-    [Header("아이템")]
-    [SerializeField] private int wCount = 20;
-    [SerializeField] private int aCount = 20;
-    [SerializeField] private int dCount = 20;
-    
     [Header("아이템 감소 간격")]
     private float consumeInterval = 1f; //초마다 1씩 차감
     private float aTimer = 0f;
@@ -56,6 +50,9 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
         sr = GetComponent<SpriteRenderer>();
+        
+        // 💡 같은 플레이어 안에 있는 리소스 매니저를 찾아 연결합니다
+        resourceManager = GetComponent<PlayerResourceManager>();
     }
     
     void Start()
@@ -68,20 +65,14 @@ public class PlayerController : MonoBehaviour
             //아니면 제약 풀어주기
             isGameStarted = true;
         }
-        
-        if (uiManager != null) {
-            uiManager.UpdateItemUI("W", wCount);
-            uiManager.UpdateItemUI("A", aCount);
-            uiManager.UpdateItemUI("D", dCount);
-            uiManager.UpdateItemUI("R", "∞");
-        }
     }
     
     void Update()
     {
+        // 코요테 타임 타이머 계산
         if (IsGrounded())
         {
-            coyoteTimeCounter = 0.2f;
+            coyoteTimeCounter = coyoteTime;
         }
         else
         {
@@ -118,17 +109,7 @@ public class PlayerController : MonoBehaviour
             }
         }
         
-        // 코요테 타임 타이머 계산
-        if (IsGrounded())
-        {
-            coyoteTimeCounter = coyoteTime; 
-        }
-        else
-        {
-            coyoteTimeCounter -= Time.deltaTime; 
-        }
-
-        //점프 입력은 오직 여기!!!!!
+        //점프 입력은 오직 여기
         if (Input.GetKeyDown(KeyCode.W)) 
         {
             Jump();
@@ -137,22 +118,20 @@ public class PlayerController : MonoBehaviour
         //자폭(R)
         if (transform.position.y < -10f || Input.GetKeyDown(KeyCode.R))
         {
-            Die();
+            resourceManager.Die();
         }
         
         if (!IsGrounded() && currentDashTime <= 0f)
         {
-            if (Input.GetKeyDown(KeyCode.A) && aCount > 0)
+            if (Input.GetKeyDown(KeyCode.A) && resourceManager.HasItem("A"))
             {
                 StartDash(-1f);
-                aCount--;
-                if (uiManager != null) uiManager.UpdateItemUI("A", aCount);
+                resourceManager.UseItem("A"); // 💡 아이템 소모
             }
-            else if (Input.GetKeyDown(KeyCode.D) && dCount > 0)
+            else if (Input.GetKeyDown(KeyCode.D) && resourceManager.HasItem("D"))
             {
                 StartDash(1f);
-                dCount--;
-                if (uiManager != null) uiManager.UpdateItemUI("D", dCount);
+                resourceManager.UseItem("D");
             }
         }
     }
@@ -196,40 +175,43 @@ public class PlayerController : MonoBehaviour
         
         float moveInput = 0;
 
-        //왼쪽 이동(A)
-        if (Input.GetKey(KeyCode.A) && aCount > 0)
+        
+        //(입력 키, 아이템 이름, 이동 방향, 타이머 변수, 최종 이동값)
+        HandleDirection(KeyCode.A, "A", -1f, ref aTimer, ref moveInput);
+        HandleDirection(KeyCode.D, "D",  1f, ref dTimer, ref moveInput);
+
+        //공중 조작 배수 계산
+        float currentSpeed = IsGrounded() ? moveSpeed : moveSpeed * airControl;
+        
+        //Y축 속도 결정
+        float targetVerticalVelocity = rb.linearVelocity.y;
+
+        //고속 착지
+        if (Input.GetKey(KeyCode.S) && !IsGrounded())
         {
-            moveInput = -1;
-            aTimer += Time.fixedDeltaTime;
-            if (aTimer >= consumeInterval)
-            {
-                aCount--;
-                aTimer = 0f;
-                if (uiManager != null) uiManager.UpdateItemUI("A", aCount);
-                Debug.Log("왼쪽ㅣ남은 횟수: " + aCount);
-            }
-        }
-        else
-        {
-            aTimer = consumeInterval; 
+            targetVerticalVelocity = -fastFallSpeed;
+            Debug.Log("고속 착지");
         }
 
-        //오른쪽 이동(D)
-        if (Input.GetKey(KeyCode.D) && dCount > 0)
+        //최종 속도 적용
+        rb.linearVelocity = new Vector2(moveInput * currentSpeed, targetVerticalVelocity);
+    }
+    
+    private void HandleDirection(KeyCode key, string itemType, float dir, ref float timer, ref float moveInput)
+    {
+        if (Input.GetKey(key) && resourceManager.HasItem(itemType))
         {
-            moveInput = 1;
-            dTimer += Time.fixedDeltaTime; // !! [수정] FixedUpdate 내부이므로 Time.fixedDeltaTime으로 변경
-            if (dTimer >= consumeInterval)
+            moveInput = dir;
+            timer += Time.fixedDeltaTime;
+            if (timer >= consumeInterval)
             {
-                dCount--;
-                dTimer = 0f;
-                if (uiManager != null) uiManager.UpdateItemUI("D", dCount);
-                Debug.Log("오른쪽ㅣ남은 횟수: " + dCount);
+                resourceManager.UseItem(itemType); //아이템 소모
+                timer = 0f;
             }
         }
         else
         {
-            dTimer = consumeInterval;
+            timer = consumeInterval; 
         }
 
         //공중 조작 배수 계산
@@ -256,8 +238,10 @@ public class PlayerController : MonoBehaviour
         
     void Jump()
     {
-        if (wCount > 0 && coyoteTimeCounter > 0f)
+        if (resourceManager.HasItem("W") && coyoteTimeCounter > 0f)
         {
+            resourceManager.UseItem("W"); //아이템 소모
+            
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
             
@@ -266,24 +250,7 @@ public class PlayerController : MonoBehaviour
                 anim.SetTrigger("Jump"); //애니메이션 트리거 신호
             }
     
-            wCount--;
-            coyoteTimeCounter = 0f; // 점프시 타이머 중지
-
-            if (uiManager != null) uiManager.UpdateItemUI("W", wCount);
-            Debug.Log("점프 성공! 남은 횟수: " + wCount);
+            coyoteTimeCounter = 0f; //점프시 타이머 중지
         }
-    }
-    
-    private void Die()
-    {
-        Debug.Log("사망ㅣ게임오버");
-        
-        if (gameManager != null) gameManager.AddDeath();
-        
-        FindAnyObjectByType<BackgroundManager>().ChangeBackgroundOnDeath(); //배경매니저로 신호 보내기
-        
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-                UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
-            );
     }
 }
