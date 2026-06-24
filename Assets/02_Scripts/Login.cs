@@ -69,7 +69,13 @@ public class Login : MonoBehaviour
             if (webRequest.result == UnityWebRequest.Result.Success)
             {
                 logText.text = "로그인 성공!";
-                // 성공 시 씬 이동
+                
+                //이메일을 저장
+                PlayerPrefs.SetString("UserEmail", emailInput.text);
+                PlayerPrefs.Save();
+                
+                //화면 이동
+                SceneManager.LoadScene("Stage00");
             }
             else
             {

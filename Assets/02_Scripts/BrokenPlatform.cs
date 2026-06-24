@@ -8,7 +8,6 @@ public class BrokenPlatform : MonoBehaviour
     [SerializeField] private float shakeIntensity = 0.05f;
 
     [Header("시각적 오브젝트 연결")]
-    [Tooltip("발판의 메쉬를 가지고 있는 자식 오브젝트(Visual)를 드래그해서 넣어주세요.")]
     [SerializeField] private Transform visualTransform;
 
     private bool isStepped = false;
@@ -57,7 +56,7 @@ public class BrokenPlatform : MonoBehaviour
             yield return null;
         }
 
-        // 시간 다 되면 이미지 위치 원상복구 후 물리/렌더러 끄기
+        //시간 다 되면 이미지 위치 원상복구 후 물리/렌더러 끄기
         if (visualTransform != null)
         {
             visualTransform.localPosition = initialVisualPosition;

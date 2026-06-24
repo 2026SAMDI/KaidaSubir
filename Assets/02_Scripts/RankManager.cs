@@ -22,7 +22,7 @@ public class RankManager : MonoBehaviour
     IEnumerator GetRankingFromServer()
     {
         string url = serverBaseUrl + rankingEndpoint;
-        rankText.text = "서버에서 랭킹 불러오는 중...";
+        rankText.text = "랭킹 불러오는 중...";
 
         using (UnityWebRequest webRequest = UnityWebRequest.Get(url))
         {
@@ -40,8 +40,8 @@ public class RankManager : MonoBehaviour
             }
             else
             {
-                rankText.text = "랭킹 로드 실패";
-                Debug.LogError("랭킹 가져오기 실패: " + webRequest.error);
+                rankText.text = "랭킹 불러오기 실패!";
+                Debug.LogError("랭킹 불러오기 실패: " + webRequest.error);
             }
         }
     }
@@ -55,7 +55,7 @@ public class RankManager : MonoBehaviour
             }
 
             RankingList rawData = JsonUtility.FromJson<RankingList>(json);
-            string displayText = "데스 랭킹 TOP 10 \n\n";
+            string displayText = "\n\n";
 
             int rank = 1;
             foreach (var user in rawData.rankings)

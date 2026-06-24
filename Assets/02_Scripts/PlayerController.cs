@@ -1,25 +1,36 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System;
 
 [RequireComponent(typeof(PlayerResourceManager))]
 public class PlayerController : MonoBehaviour
 {
     private PlayerResourceManager resourceManager;
+    private PlayerAnimator playerAnimator;
+    private PlayerInput playerInput;
+    private Collider playerCollider;
+    
+    public event Action OnJumpEvent;
+    public event Action OnDashEvent;
+    public event Action OnLandEvent;
+    public event Action OnSwordModeEvent;
     
     [Header("이동")]
     [SerializeField] private float moveSpeed = 1.5f;
+    [SerializeField] private float swordMoveSpeed = 2.5f;
     [SerializeField] private float jumpForce = 5f;
 
     [Header("아이템 감소 간격")]
     private float consumeInterval = 1f; //초마다 1씩 차감
     private float aTimer = 0f;
     private float dTimer = 0f;
+    private float sTimer = 0f;
     
     [Header("중력")]
     [SerializeField] private float fall = 2.5f; //떨어질 때 중력 배수
     
     [Header("바닥 확인")]
-    [SerializeField] private float groundDistance = 4.8f; //플레이어 중심에서 바닥까지 거리
+    [SerializeField] private float groundDistance = 0.1f; //플레이어 바닥까지 거리
     [SerializeField] private LayerMask groundLayer; //바닥으로 인식할 레이어
     
     [Header("체공 후 조작")]
@@ -41,17 +52,20 @@ public class PlayerController : MonoBehaviour
     
     private bool isGameStarted = false; //게임 시작까지 대기
     
+    [Header("검 모드")]
+    private bool hasSwordMode = false;
+    public bool HasSwordMode => hasSwordMode;
+    
     private Rigidbody rb;
-    private Animator anim;
-    private SpriteRenderer sr;
+    private bool wasGrounded = true; 
     
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        anim = GetComponent<Animator>();
-        sr = GetComponent<SpriteRenderer>();
-        
         resourceManager = GetComponent<PlayerResourceManager>();
+        playerAnimator = GetComponent<PlayerAnimator>(); 
+        playerInput = GetComponent<PlayerInput>();
+        playerCollider = GetComponent<Collider>();
     }
     
     void Start()
@@ -68,8 +82,16 @@ public class PlayerController : MonoBehaviour
     
     void Update()
     {
+        bool grounded = IsGrounded(); //바닥 상태를 변수에 저장
+        
+        if (!wasGrounded && grounded)
+        {
+            OnLandEvent?.Invoke();
+        }
+        wasGrounded = grounded; 
+        
         //코요테 타임 타이머 계산
-        if (IsGrounded())
+        if (grounded)
         {
             coyoteTimeCounter = coyoteTime;
         }
@@ -78,27 +100,9 @@ public class PlayerController : MonoBehaviour
             coyoteTimeCounter -= Time.deltaTime;
         }
         
-        //좌우 반전
-        if (rb.linearVelocity.x < -0.1f)
-        {
-            sr.flipX = true;  //왼쪽 이동하면 이미지 반전
-        }
-        else if (rb.linearVelocity.x > 0.1f)
-        {
-            sr.flipX = false; //오른쪽 이동이면 반전 끄기
-        }
-        
-        if (anim != null)
-        {
-            bool isWalking = Mathf.Abs(rb.linearVelocity.x) > 0.1f;
-            anim.SetBool("IsWalking", isWalking);
-            anim.SetBool("IsGrounded", IsGrounded());
-            anim.SetFloat("yVelocity", rb.linearVelocity.y);
-        }
-        
         if (!isGameStarted)
         {
-            if (Input.GetKeyDown(KeyCode.W))
+            if (playerInput.JumpInput)
             {
                 isGameStarted = true;
             }
@@ -109,29 +113,35 @@ public class PlayerController : MonoBehaviour
         }
         
         //점프 입력은 오직 여기
-        if (Input.GetKeyDown(KeyCode.W)) 
+        if (playerInput.JumpInput) 
         {
             Jump();
         }
         
         //자폭(R)
-        if (transform.position.y < -10f || Input.GetKeyDown(KeyCode.R))
+        if (transform.position.y < -10f || playerInput.DieInput)
         {
             resourceManager.Die();
         }
         
-        if (!IsGrounded() && currentDashTime <= 0f)
+        if (!grounded && currentDashTime <= 0f)
         {
-            if (Input.GetKeyDown(KeyCode.A) && resourceManager.HasItem("A"))
+            if (playerInput.DashLeftInput && resourceManager.HasItem("A"))
             {
                 StartDash(-1f);
                 resourceManager.UseItem("A"); //아이템 소모
             }
-            else if (Input.GetKeyDown(KeyCode.D) && resourceManager.HasItem("D"))
+            else if (playerInput.DashRightInput && resourceManager.HasItem("D"))
             {
                 StartDash(1f);
-                resourceManager.UseItem("D");
+                resourceManager.UseItem("D"); //아이템 소모
             }
+        }
+
+        //애니메이터에게 현재 상태 넘기기
+        if (playerAnimator != null)
+        {
+            playerAnimator.UpdateAnimationState(grounded, rb.linearVelocity, hasSwordMode);
         }
     }
     
@@ -158,6 +168,10 @@ public class PlayerController : MonoBehaviour
     {
         currentDashTime = dashDuration; //타이머 시작
         dashDirection = dir; //방향 설정
+        
+        if (playerAnimator != null) playerAnimator.TriggerDash(); //애니메이션 트리거
+        
+        OnDashEvent?.Invoke();
     }
     
     void Move()
@@ -174,30 +188,41 @@ public class PlayerController : MonoBehaviour
         
         float moveInput = 0;
 
-        //(입력 키, 아이템 이름, 이동 방향, 타이머 변수, 최종 이동값)
-        HandleDirection(KeyCode.A, "A", -1f, ref aTimer, ref moveInput);
-        HandleDirection(KeyCode.D, "D",  1f, ref dTimer, ref moveInput);
-
+        //(입력 상태, 아이템 이름, 이동 방향, 타이머 변수, 최종 이동값)
+        HandleDirection(playerInput.MoveLeftInput, "A", -1f, ref aTimer, ref moveInput);
+        HandleDirection(playerInput.MoveRightInput, "D",  1f, ref dTimer, ref moveInput);
+        
+        float activeMoveSpeed = hasSwordMode ? swordMoveSpeed : moveSpeed;
+        
         //공중 조작 배수 계산
-        float currentSpeed = IsGrounded() ? moveSpeed : moveSpeed * airControl;
+        float currentSpeed = IsGrounded() ? activeMoveSpeed : activeMoveSpeed * airControl;
         
         //Y축 속도 결정
         float targetVerticalVelocity = rb.linearVelocity.y;
 
         //고속 착지
-        if (Input.GetKey(KeyCode.S) && !IsGrounded())
+        if (playerInput.FastFallInput && !IsGrounded() && resourceManager.HasItem("S"))
         {
             targetVerticalVelocity = -fastFallSpeed;
-            Debug.Log("고속 착지");
+            sTimer += Time.fixedDeltaTime; 
+            if (sTimer >= consumeInterval)
+            {
+                resourceManager.UseItem("S"); //아이템 소모
+                sTimer = 0f;
+            }
+        }
+        else
+        {
+            sTimer = consumeInterval; 
         }
 
         //최종 속도 적용
         rb.linearVelocity = new Vector2(moveInput * currentSpeed, targetVerticalVelocity);
     }
     
-    private void HandleDirection(KeyCode key, string itemType, float dir, ref float timer, ref float moveInput)
+    private void HandleDirection(bool isPressed, string itemType, float dir, ref float timer, ref float moveInput)
     {
-        if (Input.GetKey(key) && resourceManager.HasItem(itemType))
+        if (isPressed && resourceManager.HasItem(itemType))
         {
             moveInput = dir; //이동 방향 설정
             timer += Time.fixedDeltaTime;
@@ -215,7 +240,9 @@ public class PlayerController : MonoBehaviour
     
     private bool IsGrounded()
     {
-        return Physics.Raycast(transform.position, Vector3.down, groundDistance, groundLayer);
+        if (playerCollider == null) return false;
+        Vector3 rayStart = new Vector3(playerCollider.bounds.center.x, playerCollider.bounds.min.y + 0.05f, playerCollider.bounds.center.z);
+        return Physics.Raycast(rayStart, Vector3.down, groundDistance + 0.05f, groundLayer);
     }
         
     void Jump()
@@ -227,12 +254,19 @@ public class PlayerController : MonoBehaviour
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
             
-            if (anim != null) 
-            {
-                anim.SetTrigger("Jump"); //애니메이션 트리거 신호
-            }
+            if (playerAnimator != null) playerAnimator.TriggerJump(); //애니메이션 트리거
+            
+            OnJumpEvent?.Invoke();
     
             coyoteTimeCounter = 0f; //점프시 타이머 중지
         }
+    }
+
+    public void ActivateSwordMode()
+    {
+        hasSwordMode = true;
+        Debug.Log("검 모드 활성화");
+        
+        OnSwordModeEvent?.Invoke();
     }
 }

@@ -11,7 +11,8 @@ public class PlayerResourceManager : MonoBehaviour
     [SerializeField] private int wCount = 20;
     [SerializeField] private int aCount = 20;
     [SerializeField] private int dCount = 20;
-
+    [SerializeField] private int sCount = 20;
+    
     void Start()
     {
         UpdateAllUI();
@@ -23,6 +24,7 @@ public class PlayerResourceManager : MonoBehaviour
             uiManager.UpdateItemUI("W", wCount);
             uiManager.UpdateItemUI("A", aCount);
             uiManager.UpdateItemUI("D", dCount);
+            uiManager.UpdateItemUI("S", sCount);
             uiManager.UpdateItemUI("R", "∞");
         }
     }
@@ -32,6 +34,7 @@ public class PlayerResourceManager : MonoBehaviour
         if (itemType == "W") return wCount > 0;
         if (itemType == "A") return aCount > 0;
         if (itemType == "D") return dCount > 0;
+        if (itemType == "S") return sCount > 0;
         return false;
     }
     
@@ -51,6 +54,11 @@ public class PlayerResourceManager : MonoBehaviour
             dCount--;
             if (uiManager != null) uiManager.UpdateItemUI("D", dCount);
             Debug.Log("오른쪽(D) 사용! 남은 횟수: " + dCount);
+        }
+        else if (itemType == "S" && sCount > 0) {
+            sCount--;
+            if (uiManager != null) uiManager.UpdateItemUI("S", sCount);
+            Debug.Log("아래(S) 사용! 남은 횟수: " + sCount);
         }
     }
 
