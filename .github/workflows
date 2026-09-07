@@ -1,0 +1,31 @@
+# 워크플로우 이름 (GitHub 웹 UI에 표시됨)
+name: CI/CD Pipeline
+
+# 트리거 조건: main 브랜치에 push 또는 Pull Request 발생 시 실행
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# 실행할 작업 정의
+jobs:
+  build:
+    # 실행될 OS 환경 선택
+    runs-on: ubuntu-latest
+
+    # 실행할 단계 순서대로 정의
+    steps:
+      # 1. 리포지토리 소스코드 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 간단한 스크립트 실행 예시
+      - name: Run a one-line script
+        run: echo "Workflow started!"
+
+      # 3. 테스트 또는 빌드 명령 실행
+      - name: Run build script
+        run: |
+          echo "Building project..."
+          # npm test 또는 기타 빌드 명령 입력
