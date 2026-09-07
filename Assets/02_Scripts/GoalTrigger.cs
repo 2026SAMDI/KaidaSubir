@@ -20,6 +20,13 @@ public class GoalTrigger : MonoBehaviour
                 Debug.LogWarning("다음 스테이지 이른이 지정된 적 없네요.");
             }
         }
+        
+        if (other.CompareTag("Player"))
+        {
+            Debug.Log("골인 지점 도착! GameManager에게 전송 요청...");
+            
+            FindAnyObjectByType<GameManager>().NotifyStageClear();
+        }
     }
     
     private void OnDrawGizmos()
@@ -33,6 +40,16 @@ public class GoalTrigger : MonoBehaviour
             Gizmos.DrawCube(transform.position + boxCollider.center, boxCollider.size);
             Gizmos.color = Color.green;
             Gizmos.DrawWireCube(transform.position + boxCollider.center, boxCollider.size);
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            Debug.Log("골인 지점 도착! GameManager에게 전송 요청...");
+            
+            FindAnyObjectByType<GameManager>().NotifyStageClear();
         }
     }
 }

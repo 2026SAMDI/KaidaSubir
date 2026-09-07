@@ -7,6 +7,7 @@ public class UiManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI aText;
     [SerializeField] private TextMeshProUGUI dText;
     [SerializeField] private TextMeshProUGUI wText;
+    [SerializeField] private TextMeshProUGUI sText;
     [SerializeField] private TextMeshProUGUI rText;
     
     public void UpdateItemUI(string type, int count)
@@ -16,6 +17,7 @@ public class UiManager : MonoBehaviour
             case "A": if (aText != null) aText.text = $"A\n{count}"; break;
             case "D": if (dText != null) dText.text = $"D\n{count}"; break;
             case "W": if (wText != null) wText.text = $"W\n{count}"; break;
+            case "S": if (wText != null) sText.text = $"S\n{count}"; break;
             case "R": if (rText != null) rText.text = $"R\n{count}"; break;
         }
     }
